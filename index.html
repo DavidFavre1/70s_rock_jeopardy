@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>70s Rock Jeopardy</title>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .jeopardy-board {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #003366;
+        }
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .player {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .current-player {
+            color: #0066cc;
+        }
+        .timer {
+            font-size: 1.2em;
+        }
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .category {
+            background-color: #003366;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+        .questions {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        .question-button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .question-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .selected-question {
+            background-color: white;
+            border: 2px solid #003366;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .question-text {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+        .submit-button {
+            background-color: #006600;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .feedback {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .correct {
+            color: #006600;
+        }
+        .incorrect {
+            color: #cc0000;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const categories = [
+            "Guitar Heroes", "Album Artwork", "Band Names", "Rock History", "Instruments"
+        ];
+
+        const questions = {
+            "Guitar Heroes": [
+                { q: "This guitarist was known as 'Slowhand'", a: "Who is Eric Clapton?", value: 200 },
+                { q: "He played a double-necked Gibson SG", a: "Who is Jimmy Page?", value: 400 },
+                { q: "This Queen guitarist built his own electric guitar", a: "Who is Brian May?", value: 600 },
+                { q: "He was the lead guitarist of The Who", a: "Who is Pete Townshend?", value: 800 },
+                { q: "This 'Gypsy of Rock' played with Santana before going solo", a: "Who is Carlos Santana?", value: 1000 }
+            ],
+            "Album Artwork": [
+                { q: "This Pink Floyd album cover features a prism", a: "What is 'Dark Side of the Moon'?", value: 200 },
+                { q: "The cover of this Beatles album shows them crossing a street", a: "What is 'Abbey Road'?", value: 400 },
+                { q: "This Rolling Stones album cover features a zipper", a: "What is 'Sticky Fingers'?", value: 600 },
+                { q: "This album by The Who shows band members sitting on a concrete piling", a: "What is 'Who's Next'?", value: 800 },
+                { q: "This David Bowie album cover features a lightning bolt across his face", a: "What is 'Aladdin Sane'?", value: 1000 }
+            ],
+            "Band Names": [
+                { q: "This band's name comes from a type of airship", a: "Who are Led Zeppelin?", value: 200 },
+                { q: "Their name was inspired by a 1920s blues musician", a: "Who are The Rolling Stones?", value: 400 },
+                { q: "This prog rock band shares its name with a color", a: "Who are Pink Floyd?", value: 600 },
+                { q: "This band's name was inspired by a novel by Anthony Burgess", a: "Who are The Eagles?", value: 800 },
+                { q: "This band's name comes from Chicago's public transit system", a: "Who are Chicago?", value: 1000 }
+            ],
+            "Rock History": [
+                { q: "This 1969 festival kicked off the 70s rock scene", a: "What is Woodstock?", value: 200 },
+                { q: "The Beatles officially broke up in this year", a: "What is 1970?", value: 400 },
+                { q: "This genre, featuring artists like David Bowie, emerged in the early 70s", a: "What is Glam Rock?", value: 600 },
+                { q: "This band released their debut album 'Ramones' in 1976", a: "Who are The Ramones?", value: 800 },
+                { q: "This 1979 tragedy occurred at a The Who concert in Cincinnati", a: "What is the crowd crush at Riverfront Coliseum?", value: 1000 }
+            ],
+            "Instruments": [
+                { q: "This keyboard instrument was popular in prog rock", a: "What is a synthesizer?", value: 200 },
+                { q: "This percussion instrument is often used in rock drum solos", a: "What are cowbells?", value: 400 },
+                { q: "This string instrument was popularized by The Who's John Entwistle", a: "What is a bass guitar?", value: 600 },
+                { q: "This wind instrument was used by Jethro Tull's Ian Anderson", a: "What is a flute?", value: 800 },
+                { q: "This stringed instrument was often used by Jimmy Page in addition to electric guitar", a: "What is a mandolin?", value: 1000 }
+            ]
+        };
+
+        const JeopardyBoard = () => {
+            const [players, setPlayers] = React.useState([
+                { name: "Player 1", score: 0 },
+                { name: "Player 2", score: 0 }
+            ]);
+            const [currentPlayer, setCurrentPlayer] = React.useState(0);
+            const [selectedQuestion, setSelectedQuestion] = React.useState(null);
+            const [revealedQuestions, setRevealedQuestions] = React.useState([]);
+            const [playerAnswer, setPlayerAnswer] = React.useState('');
+            const [feedback, setFeedback] = React.useState('');
+            const [timer, setTimer] = React.useState(30);
+            const [isTimerRunning, setIsTimerRunning] = React.useState(false);
+
+            React.useEffect(() => {
+                let interval;
+                if (isTimerRunning && timer > 0) {
+                    interval = setInterval(() => setTimer(timer - 1), 1000);
+                } else if (timer === 0) {
+                    handleTimeUp();
+                }
+                return () => clearInterval(interval);
+            }, [isTimerRunning, timer]);
+
+            const handleQuestionClick = (category, index) => {
+                setSelectedQuestion({ category, index });
+                setRevealedQuestions([...revealedQuestions, `${category}-${index}`]);
+                setPlayerAnswer('');
+                setFeedback('');
+                setTimer(30);
+                setIsTimerRunning(true);
+            };
+
+            const handleSubmitAnswer = () => {
+                setIsTimerRunning(false);
+                const currentQuestion = questions[selectedQuestion.category][selectedQuestion.index];
+                const correctAnswer = currentQuestion.a.toLowerCase();
+                const playerAnswerLower = playerAnswer.toLowerCase();
+                
+                if (playerAnswerLower === correctAnswer) {
+                    updatePlayerScore(currentQuestion.value);
+                    setFeedback('Correct!');
+                } else {
+                    updatePlayerScore(-currentQuestion.value);
+                    setFeedback(`Sorry, the correct answer is: ${currentQuestion.a}`);
+                }
+                setCurrentPlayer((currentPlayer + 1) % players.length);
+            };
+
+            const updatePlayerScore = (points) => {
+                setPlayers(players.map((player, index) => 
+                    index === currentPlayer ? { ...player, score: player.score + points } : player
+                ));
+            };
+
+            const handleTimeUp = () => {
+                setFeedback("Time's up!");
+                setCurrentPlayer((currentPlayer + 1) % players.length);
+            };
+
+            return (
+                <div className="jeopardy-board">
+                    <h1>70s Rock Jeopardy</h1>
+                    <div className="player-info">
+                        {players.map((player, index) => (
+                            <div key={index} className={`player ${index === currentPlayer ? 'current-player' : ''}`}>
+                                {player.name}: ${player.score}
+                            </div>
+                        ))}
+                        <div className="timer">Time: {timer}s</div>
+                    </div>
+                    <div className="categories">
+                        {categories.map((category) => (
+                            <div key={category} className="category">{category}</div>
+                        ))}
+                    </div>
+                    <div className="questions">
+                        {categories.map((category) => (
+                            questions[category].map((question, index) => (
+                                <button
+                                    key={`${category}-${index}`}
+                                    className="question-button"
+                                    onClick={() => handleQuestionClick(category, index)}
+                                    disabled={revealedQuestions.includes(`${category}-${index}`)}
+                                >
+                                    ${question.value}
+                                </button>
+                            ))
+                        ))}
+                    </div>
+                    {selectedQuestion && (
+                        <div className="selected-question">
+                            <div className="question-text">{questions[selectedQuestion.category][selectedQuestion.index].q}</div>
+                            <input
+                                type="text"
+                                placeholder="Your answer"
+                                value={playerAnswer}
+                                onChange={(e) => setPlayerAnswer(e.target.value)}
+                            />
+                            <button className="submit-button" onClick={handleSubmitAnswer}>Submit Answer</button>
+                            {feedback && (
+                                <div className={`feedback ${feedback === 'Correct!' ? 'correct' : 'incorrect'}`}>
+                                    {feedback}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<JeopardyBoard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
