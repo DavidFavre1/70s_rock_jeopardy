@@ -1,290 +1,277 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    <title>70s Rock Jeopardy - Single Player</title>
-    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f0f0;
-        }
-        .jeopardy-board {
-            max-width: 1200px;
-            margin: 0 auto;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            padding: 20px;
-        }
-        h1 {
-            text-align: center;
-            color: #003366;
-        }
-        .player-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        .player {
-            font-size: 1.2em;
-            font-weight: bold;
-        }
-        .timer {
-            font-size: 1.2em;
-        }
-        .categories {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .category {
-            background-color: #003366;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            font-weight: bold;
-            border-radius: 5px;
-        }
-        .questions {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-        }
-        .question-button {
-            background-color: #0066cc;
-            color: white;
-            border: none;
-            padding: 10px;
-            font-size: 1.2em;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        .question-button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .question-button.correct {
-            background-color: #00cc00;
-        }
-        .question-button.incorrect {
-            background-color: #cccccc;
-        }
-        .selected-question {
-            background-color: white;
-            border: 2px solid #003366;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        .question-text {
-            font-size: 1.2em;
-            margin-bottom: 10px;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            font-size: 1em;
-            margin-bottom: 10px;
-        }
-        .submit-button {
-            background-color: #006600;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 1em;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        .feedback {
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        .correct {
-            color: #006600;
-        }
-        .incorrect {
-            color: #cc0000;
-        }
-        .music-toggle {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background-color: #003366;
-            color: white;
-            border: none;
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-    <script type="text/babel">
-        const categories = [
-            "Guitar Heroes", "Album Artwork", "Band Names", "Rock History", "Instruments"
-        ];
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Timer, Volume2, VolumeX } from 'lucide-react';
 
-        const questions = {
-            "Guitar Heroes": [
-                { q: "This guitarist was known as 'Slowhand'", a: "Eric Clapton", value: 200 },
-                { q: "He played a double-necked Gibson SG", a: "Jimmy Page", value: 400 },
-                { q: "This Queen guitarist built his own electric guitar", a: "Brian May", value: 600 },
-                { q: "He was the lead guitarist of The Who", a: "Pete Townshend", value: 800 },
-                { q: "This 'Gypsy of Rock' played with Santana before going solo", a: "Carlos Santana", value: 1000 }
-            ],
-            "Album Artwork": [
-                { q: "This Pink Floyd album cover features a prism", a: "Dark Side of the Moon", value: 200 },
-                { q: "The cover of this Beatles album shows them crossing a street", a: "Abbey Road", value: 400 },
-                { q: "This Rolling Stones album cover features a zipper", a: "Sticky Fingers", value: 600 },
-                { q: "This album by The Who shows band members sitting on a concrete piling", a: "Who's Next", value: 800 },
-                { q: "This David Bowie album cover features a lightning bolt across his face", a: "Aladdin Sane", value: 1000 }
-            ],
-            "Band Names": [
-                { q: "This band's name comes from a type of airship", a: "Led Zeppelin", value: 200 },
-                { q: "Their name was inspired by a Muddy Waters song", a: "The Rolling Stones", value: 400 },
-                { q: "This prog rock band shares its name with a color", a: "Pink Floyd", value: 600 },
-                { q: "This band's name was inspired by the Hopi word for 'spiritually wise person'", a: "Aerosmith", value: 800 },
-                { q: "This band's name comes from Chicago's public transit system", a: "Chicago", value: 1000 }
-            ],
-            "Rock History": [
-                { q: "This 1969 festival kicked off the 70s rock scene", a: "Woodstock", value: 200 },
-                { q: "The Beatles officially broke up in this year", a: "1970", value: 400 },
-                { q: "This genre, featuring artists like David Bowie, emerged in the early 70s", a: "Glam Rock", value: 600 },
-                { q: "This band released their debut album 'Ramones' in 1976", a: "The Ramones", value: 800 },
-                { q: "This 1979 tragedy occurred at a The Who concert in Cincinnati", a: "crowd crush at Riverfront Coliseum", value: 1000 }
-            ],
-            "Instruments": [
-                { q: "This keyboard instrument was popular in prog rock", a: "synthesizer", value: 200 },
-                { q: "This percussion instrument is often used in rock drum solos", a: "cowbell", value: 400 },
-                { q: "This string instrument was popularized by The Who's John Entwistle", a: "bass guitar", value: 600 },
-                { q: "This wind instrument was used by Jethro Tull's Ian Anderson", a: "flute", value: 800 },
-                { q: "This stringed instrument was often used by Jimmy Page in addition to electric guitar", a: "mandolin", value: 1000 }
-            ]
-        };
+// Game theme music and sound effects
+const themeMusic = new Audio('/path/to/theme-music.mp3');
+const correctSound = new Audio('/path/to/correct-sound.mp3');
+const incorrectSound = new Audio('/path/to/incorrect-sound.mp3');
 
-        const JeopardyBoard = () => {
-            const [score, setScore] = React.useState(0);
-            const [selectedQuestion, setSelectedQuestion] = React.useState(null);
-            const [answeredQuestions, setAnsweredQuestions] = React.useState({});
-            const [playerAnswer, setPlayerAnswer] = React.useState('');
-            const [feedback, setFeedback] = React.useState('');
-            const [timer, setTimer] = React.useState(30);
-            const [isTimerRunning, setIsTimerRunning] = React.useState(false);
-            const [isMusicPlaying, setIsMusicPlaying] = React.useState(false);
-            const audioRef = React.useRef(null);
+const categories = [
+  "Guitar Heroes", "Album Artwork", "Band Names", "Rock History", "Instruments"
+];
 
-            React.useEffect(() => {
-                let interval;
-                if (isTimerRunning && timer > 0) {
-                    interval = setInterval(() => setTimer(timer - 1), 1000);
-                } else if (timer === 0) {
-                    handleTimeUp();
-                }
-                return () => clearInterval(interval);
-            }, [isTimerRunning, timer]);
+const questions = {
+  "Guitar Heroes": [
+    { q: "This guitarist was known as 'Slowhand'", a: "Who is Eric Clapton", value: 200, type: "text" },
+    { q: "Listen to this iconic guitar riff", a: "Who is Jimmy Page", value: 400, type: "audio", src: "/path/to/stairway-to-heaven.mp3" },
+    { q: "This Queen guitarist built his own electric guitar", a: "Who is Brian May", value: 600, type: "text" },
+    { q: "This guitarist is known for his 'windmill' move", a: "Who is Pete Townshend", value: 800, type: "text" },
+    { q: "This 'Gypsy of Rock' played with Santana before going solo", a: "Who is Carlos Santana", value: 1000, type: "text" }
+  ],
+  "Album Artwork": [
+    { q: "This Pink Floyd album cover features a prism", a: "What is Dark Side of the Moon", value: 200, type: "image", src: "/api/placeholder/300/300" },
+    { q: "The cover of this Beatles album shows them crossing a street", a: "What is Abbey Road", value: 400, type: "image", src: "/api/placeholder/300/300" },
+    { q: "This Rolling Stones album cover features a zipper", a: "What is Sticky Fingers", value: 600, type: "image", src: "/api/placeholder/300/300" },
+    { q: "This album by The Who shows band members sitting on a concrete piling", a: "What is Who's Next", value: 800, type: "image", src: "/api/placeholder/300/300" },
+    { q: "This David Bowie album cover features a lightning bolt across his face", a: "What is Aladdin Sane", value: 1000, type: "image", src: "/api/placeholder/300/300" }
+  ],
+  "Band Names": [
+    { q: "This band's name comes from a type of airship", a: "Who are Led Zeppelin", value: 200, type: "text" },
+    { q: "Their name was inspired by a 1920s blues musician", a: "Who are The Rolling Stones", value: 400, type: "text" },
+    { q: "This prog rock band shares its name with a color", a: "Who are Pink Floyd", value: 600, type: "text" },
+    { q: "This band's name was inspired by a novel by Anthony Burgess", a: "Who are The Eagles", value: 800, type: "text" },
+    { q: "This band's name comes from Chicago's public transit system", a: "Who are Chicago", value: 1000, type: "text" }
+  ],
+  "Rock History": [
+    { q: "This 1969 festival kicked off the 70s rock scene", a: "What is Woodstock", value: 200, type: "image", src: "/api/placeholder/300/300" },
+    { q: "The Beatles officially broke up in this year", a: "What is 1970", value: 400, type: "text" },
+    { q: "This genre, featuring artists like David Bowie, emerged in the early 70s", a: "What is Glam Rock", value: 600, type: "text" },
+    { q: "This band released their debut album 'Ramones' in 1976", a: "Who are The Ramones", value: 800, type: "audio", src: "/path/to/blitzkrieg-bop.mp3" },
+    { q: "This 1979 tragedy occurred at a The Who concert in Cincinnati", a: "What is the crowd crush at Riverfront Coliseum", value: 1000, type: "text" }
+  ],
+  "Instruments": [
+    { q: "This keyboard instrument was popular in prog rock", a: "What is a synthesizer", value: 200, type: "audio", src: "/path/to/moog-synthesizer.mp3" },
+    { q: "This percussion instrument is often used in rock drum solos", a: "What are cowbells", value: 400, type: "audio", src: "/path/to/cowbell.mp3" },
+    { q: "This string instrument was popularized by The Who's John Entwistle", a: "What is a bass guitar", value: 600, type: "audio", src: "/path/to/bass-solo.mp3" },
+    { q: "This wind instrument was used by Jethro Tull's Ian Anderson", a: "What is a flute", value: 800, type: "text" },
+    { q: "This stringed instrument was often used by Jimmy Page in addition to electric guitar", a: "What is a mandolin", value: 1000, type: "audio", src: "/path/to/mandolin.mp3" }
+  ]
+};
 
-            React.useEffect(() => {
-                audioRef.current = new Audio("data:audio/midi;base64,TVRoZAAAAAYAAQACAQBNVHJrAAAAGgD/WAQEAhgIAP9ZAgAAAP9RMDEwMDAALwA=");
-                audioRef.current.loop = true;
-            }, []);
+const JeopardyBoard = () => {
+  const [player, setPlayer] = useState({ name: "Player", score: 0 });
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+  const [revealedQuestions, setRevealedQuestions] = useState([]);
+  const [answeredQuestions, setAnsweredQuestions] = useState({});
+  const [playerAnswer, setPlayerAnswer] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [timer, setTimer] = useState(30);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [isDailyDouble, setIsDailyDouble] = useState(false);
+  const [wager, setWager] = useState(0);
+  const [isFinalJeopardy, setIsFinalJeopardy] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [dailyDoubleCount, setDailyDoubleCount] = useState(0);
+  const audioRef = useRef(null);
 
-            const toggleMusic = () => {
-                if (isMusicPlaying) {
-                    audioRef.current.pause();
-                } else {
-                    audioRef.current.play();
-                }
-                setIsMusicPlaying(!isMusicPlaying);
-            };
+  useEffect(() => {
+    themeMusic.loop = true;
+    if (soundEnabled) {
+      themeMusic.play();
+    }
+    return () => {
+      themeMusic.pause();
+      themeMusic.currentTime = 0;
+    };
+  }, [soundEnabled]);
 
-            const handleQuestionClick = (category, index) => {
-                setSelectedQuestion({ category, index });
-                setPlayerAnswer('');
-                setFeedback('');
-                setTimer(30);
-                setIsTimerRunning(true);
-            };
+  useEffect(() => {
+    let interval;
+    if (isTimerRunning && timer > 0) {
+      interval = setInterval(() => setTimer(timer - 1), 1000);
+    } else if (timer === 0) {
+      handleTimeUp();
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, timer]);
 
-            const handleSubmitAnswer = () => {
-                setIsTimerRunning(false);
-                const currentQuestion = questions[selectedQuestion.category][selectedQuestion.index];
-                const correctAnswer = currentQuestion.a.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const playerAnswerProcessed = playerAnswer.toLowerCase().replace(/[^a-z0-9]/g, '');
-                
-                if (playerAnswerProcessed === correctAnswer) {
-                    setScore(score + currentQuestion.value);
-                    setFeedback('Correct!');
-                    setAnsweredQuestions({...answeredQuestions, [`${selectedQuestion.category}-${selectedQuestion.index}`]: 'correct'});
-                } else {
-                    setFeedback(`Sorry, the correct answer is: ${currentQuestion.a}`);
-                    setAnsweredQuestions({...answeredQuestions, [`${selectedQuestion.category}-${selectedQuestion.index}`]: 'incorrect'});
-                }
-            };
+  const handleQuestionClick = (category, index) => {
+    setSelectedQuestion({ category, index });
+    setRevealedQuestions([...revealedQuestions, `${category}-${index}`]);
+    setPlayerAnswer('');
+    setFeedback('');
+    setTimer(30);
+    setIsTimerRunning(true);
+    
+    if (dailyDoubleCount < 2 && Math.random() < 0.1) {
+      setIsDailyDouble(true);
+      setDailyDoubleCount(dailyDoubleCount + 1);
+    } else {
+      setIsDailyDouble(false);
+    }
 
-            const handleTimeUp = () => {
-                setFeedback("Time's up!");
-                setAnsweredQuestions({...answeredQuestions, [`${selectedQuestion.category}-${selectedQuestion.index}`]: 'incorrect'});
-            };
+    // Stop theme music and play question audio if it exists
+    themeMusic.pause();
+    const question = questions[category][index];
+    if (question.type === 'audio' && audioRef.current) {
+      audioRef.current.src = question.src;
+      audioRef.current.play();
+    }
+  };
 
-            return (
-                <div className="jeopardy-board">
-                    <h1>70s Rock Jeopardy - Single Player</h1>
-                    <button className="music-toggle" onClick={toggleMusic}>
-                        {isMusicPlaying ? "Pause Music" : "Play Music"}
-                    </button>
-                    <div className="player-info">
-                        <div className="player">Score: ${score}</div>
-                        <div className="timer">Time: {timer}s</div>
-                    </div>
-                    <div className="categories">
-                        {categories.map((category) => (
-                            <div key={category} className="category">{category}</div>
-                        ))}
-                    </div>
-                    <div className="questions">
-                        {categories.map((category) => (
-                            questions[category].map((question, index) => (
-                                <button
-                                    key={`${category}-${index}`}
-                                    className={`question-button ${answeredQuestions[`${category}-${index}`] || ''}`}
-                                    onClick={() => handleQuestionClick(category, index)}
-                                    disabled={answeredQuestions[`${category}-${index}`]}
-                                >
-                                    ${question.value}
-                                </button>
-                            ))
-                        ))}
-                    </div>
-                    {selectedQuestion && (
-                        <div className="selected-question">
-                            <div className="question-text">{questions[selectedQuestion.category][selectedQuestion.index].q}</div>
-                            <input
-                                type="text"
-                                placeholder="Your answer"
-                                value={playerAnswer}
-                                onChange={(e) => setPlayerAnswer(e.target.value)}
-                            />
-                            <button className="submit-button" onClick={handleSubmitAnswer}>Submit Answer</button>
-                            {feedback && (
-                                <div className={`feedback ${feedback === 'Correct!' ? 'correct' : 'incorrect'}`}>
-                                    {feedback}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            );
-        };
+  const handleSubmitAnswer = () => {
+    setIsTimerRunning(false);
+    const currentQuestion = questions[selectedQuestion.category][selectedQuestion.index];
+    const correctAnswer = currentQuestion.a.toLowerCase().replace(/[?!.,]/g, '');
+    const playerAnswerLower = playerAnswer.toLowerCase().replace(/[?!.,]/g, '');
+    let pointsToAdd = isDailyDouble ? wager : currentQuestion.value;
 
-        ReactDOM.render(<JeopardyBoard />, document.getElementById('root'));
-    </script>
-</body>
-</html>
+    if (playerAnswerLower === correctAnswer) {
+      updatePlayerScore(pointsToAdd);
+      setFeedback('Correct!');
+      setAnsweredQuestions({...answeredQuestions, [`${selectedQuestion.category}-${selectedQuestion.index}`]: 'correct'});
+      if (soundEnabled) correctSound.play();
+    } else {
+      updatePlayerScore(-pointsToAdd);
+      setFeedback(`Sorry, the correct answer is: ${currentQuestion.a}`);
+      setAnsweredQuestions({...answeredQuestions, [`${selectedQuestion.category}-${selectedQuestion.index}`]: 'incorrect'});
+      if (soundEnabled) incorrectSound.play();
+    }
+
+    // Resume theme music after answering
+    if (soundEnabled) {
+      themeMusic.play();
+    }
+  };
+
+  const updatePlayerScore = (points) => {
+    setPlayer(prevPlayer => ({ ...prevPlayer, score: prevPlayer.score + points }));
+  };
+
+  const handleTimeUp = () => {
+    setFeedback("Time's up!");
+    // Resume theme music after time's up
+    if (soundEnabled) {
+      themeMusic.play();
+    }
+  };
+
+  const handleWager = () => {
+    if (wager <= Math.abs(player.score)) {
+      setIsDailyDouble(false);
+    } else {
+      setFeedback("Invalid wager. Please enter a value up to the absolute value of your current score.");
+    }
+  };
+
+  const startFinalJeopardy = () => {
+    setIsFinalJeopardy(true);
+    // Set up Final Jeopardy question here
+  };
+
+  const toggleSound = () => {
+    setSoundEnabled(!soundEnabled);
+    if (soundEnabled) {
+      themeMusic.pause();
+    } else {
+      themeMusic.play();
+    }
+  };
+
+  const renderMultimediaContent = (question) => {
+    switch (question.type) {
+      case 'audio':
+        return <audio ref={audioRef} src={question.src} controls />;
+      case 'image':
+        return <img src={question.src} alt="Question Image" style={{ maxWidth: "100%", maxHeight: "300px" }} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="p-4">
+      <h1 className="text-3xl font-bold mb-4">Multimedia Rock Jeopardy</h1>
+      <div className="flex justify-between items-center mb-4">
+        <div className="text-2xl font-bold">
+          {player.name}: ${player.score}
+        </div>
+        <div className="flex items-center">
+          <Timer className="mr-2" />
+          <span>{timer}s</span>
+        </div>
+        <Button onClick={toggleSound}>
+          {soundEnabled ? <Volume2 /> : <VolumeX />}
+        </Button>
+      </div>
+      {!isFinalJeopardy ? (
+        <div className="grid grid-cols-5 gap-4">
+          {categories.map((category) => (
+            <div key={category}>
+              <h2 className="text-xl font-semibold mb-2">{category}</h2>
+              {questions[category].map((question, index) => (
+                <Button
+                  key={index}
+                  className="w-full mb-2 h-24 text-xl"
+                  onClick={() => handleQuestionClick(category, index)}
+                  disabled={revealedQuestions.includes(`${category}-${index}`)}
+                  style={{
+                    backgroundColor: answeredQuestions[`${category}-${index}`] === 'correct' ? 'green' :
+                                     answeredQuestions[`${category}-${index}`] === 'incorrect' ? 'gray' :
+                                     undefined
+                  }}
+                >
+                  ${question.value}
+                </Button>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Final Jeopardy</h2>
+          {/* Final Jeopardy UI here */}
+        </div>
+      )}
+      {selectedQuestion && (
+        <Card className="mt-4">
+          <CardHeader>
+            <h3 className="text-2xl font-bold">
+              {categories[selectedQuestion.category]} - $
+              {isDailyDouble ? 'Daily Double!' : questions[selectedQuestion.category][selectedQuestion.index].value}
+            </h3>
+          </CardHeader>
+          <CardContent>
+            {isDailyDouble ? (
+              <div>
+                <Input
+                  type="number"
+                  placeholder="Enter your wager"
+                  value={wager}
+                  onChange={(e) => setWager(Number(e.target.value))}
+                />
+                <Button onClick={handleWager}>Confirm Wager</Button>
+              </div>
+            ) : (
+              <>
+                <p className="text-xl mb-4">{questions[selectedQuestion.category][selectedQuestion.index].q}</p>
+                {renderMultimediaContent(questions[selectedQuestion.category][selectedQuestion.index])}
+                <Input
+                  className="mb-4 mt-4"
+                  placeholder="What is... / Who is..."
+                  value={playerAnswer}
+                  onChange={(e) => setPlayerAnswer(e.target.value)}
+                />
+                <Button onClick={handleSubmitAnswer} className="mr-2">Submit Answer</Button>
+              </>
+            )}
+            {feedback && (
+              <Alert className="mt-4">
+                <AlertDescription>{feedback}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      {revealedQuestions.length === Object.values(questions).flat().length && !isFinalJeopardy && (
+        <Button onClick={startFinalJeopardy} className="mt-4">Start Final Jeopardy</Button>
+      )}
+    </div>
+  );
+};
+
+export default JeopardyBoard;
