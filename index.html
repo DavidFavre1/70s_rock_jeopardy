@@ -7,39 +7,50 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             background-color: #f0f0f0;
         }
-        h1 {
-            text-align: center;
-            color: #003366;
+        #player-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px;
+            background-color: #333;
+            color: white;
         }
-        .game-board {
+        #game-board {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 10px;
-            margin-bottom: 20px;
+            margin-top: 20px;
         }
         .category {
-            background-color: #003366;
-            color: white;
-            padding: 10px;
             text-align: center;
             font-weight: bold;
-        }
-        .question {
-            background-color: #0066cc;
+            background-color: #00008B; /* Darker blue */
             color: white;
             padding: 20px;
+            font-size: 18px;
+        }
+        .card {
+            background-color: #0066cc;
+            color: white;
             text-align: center;
-            font-size: 24px;
+            padding: 20px;
             cursor: pointer;
+            font-size: 24px;
         }
-        .question.answered {
-            background-color: #666;
+        .card.correct {
+            background-color: #4CAF50;
+            cursor: not-allowed;
         }
-        .question-modal {
+        .card.incorrect {
+            background-color: #808080;
+            cursor: not-allowed;
+        }
+        #question-modal {
             display: none;
             position: fixed;
             z-index: 1;
@@ -47,7 +58,6 @@
             top: 0;
             width: 100%;
             height: 100%;
-            overflow: auto;
             background-color: rgba(0,0,0,0.4);
         }
         .modal-content {
@@ -71,153 +81,214 @@
             text-decoration: none;
             cursor: pointer;
         }
-        #player-info {
-            text-align: center;
+        #timer-container {
+            display: flex;
+            align-items: center;
+        }
+        #timer {
             font-size: 24px;
-            margin-bottom: 20px;
+            font-weight: bold;
+            margin-left: 5px;
         }
-        button {
-            background-color: #4CAF50;
-            border: none;
-            color: white;
-            padding: 15px 32px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            margin: 4px 2px;
-            cursor: pointer;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 12px 20px;
-            margin: 8px 0;
-            box-sizing: border-box;
+        #feedback {
+            margin-top: 10px;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <h1>70s Rock Jeopardy</h1>
     <div id="player-info">
-        Score: $<span id="score">0</span>
+        <div>Score: $<span id="score">0</span></div>
+        <div id="timer-container">
+            Timer: <span id="timer">30</span>s
+        </div>
     </div>
-    <div class="game-board" id="game-board"></div>
-    <div id="question-modal" class="question-modal">
+    <div id="game-board"></div>
+    <div id="question-modal">
         <div class="modal-content">
             <span class="close">&times;</span>
             <h2 id="modal-category"></h2>
             <p id="modal-question"></p>
-            <input type="text" id="player-answer" placeholder="Enter your answer">
-            <button onclick="submitAnswer()">Submit Answer</button>
-            <p id="feedback"></p>
+            <input type="text" id="answer-input" placeholder="Your answer">
+            <button id="submit-answer">Submit Answer</button>
+            <div id="feedback"></div>
         </div>
     </div>
 
     <script>
-        const categories = ["Guitar Heroes", "Album Artwork", "Band Names", "Rock History", "Instruments"];
-        const questions = {
-            "Guitar Heroes": [
-                { q: "This guitarist was known as 'Slowhand'", a: "Who is Eric Clapton", value: 200 },
-                { q: "He played a double-necked Gibson SG", a: "Who is Jimmy Page", value: 400 },
-                { q: "This Queen guitarist built his own electric guitar", a: "Who is Brian May", value: 600 },
-                { q: "He was the lead guitarist of The Who", a: "Who is Pete Townshend", value: 800 },
-                { q: "This 'Gypsy of Rock' played with Santana before going solo", a: "Who is Carlos Santana", value: 1000 }
+        const categories = ['Guitar Heroes', 'Classic Albums', 'Band Names', 'Song Lyrics', 'Music History'];
+        const questions = [
+            [
+                { q: "This guitarist is known as 'Slowhand'", a: "Eric Clapton" },
+                { q: "He played a flaming guitar at the Monterey Pop Festival", a: "Jimi Hendrix" },
+                { q: "Led Zeppelin's guitarist who used a violin bow on his guitar", a: "Jimmy Page" },
+                { q: "Pink Floyd's guitarist known for his melodic solos", a: "David Gilmour" },
+                { q: "Queen's guitarist who built his own electric guitar", a: "Brian May" }
             ],
-            "Album Artwork": [
-                { q: "This Pink Floyd album cover features a prism", a: "What is Dark Side of the Moon", value: 200 },
-                { q: "The cover of this Beatles album shows them crossing a street", a: "What is Abbey Road", value: 400 },
-                { q: "This Rolling Stones album cover features a zipper", a: "What is Sticky Fingers", value: 600 },
-                { q: "This album by The Who shows band members sitting on a concrete piling", a: "What is Who's Next", value: 800 },
-                { q: "This David Bowie album cover features a lightning bolt across his face", a: "What is Aladdin Sane", value: 1000 }
+            [
+                { q: "The Dark Side of the Moon", a: "Pink Floyd" },
+                { q: "Hotel California", a: "Eagles" },
+                { q: "Rumours", a: "Fleetwood Mac" },
+                { q: "Led Zeppelin IV", a: "Led Zeppelin" },
+                { q: "Born to Run", a: "Bruce Springsteen" }
             ],
-            "Band Names": [
-                { q: "This band's name comes from a type of airship", a: "Who are Led Zeppelin", value: 200 },
-                { q: "Their name was inspired by a 1920s blues musician", a: "Who are The Rolling Stones", value: 400 },
-                { q: "This prog rock band shares its name with a color", a: "Who are Pink Floyd", value: 600 },
-                { q: "This band's name was inspired by a novel by Anthony Burgess", a: "Who are The Eagles", value: 800 },
-                { q: "This band's name comes from Chicago's public transit system", a: "Who are Chicago", value: 1000 }
+            [
+                { q: "This band's name comes from a term for portable record players", a: "The Rolling Stones" },
+                { q: "Named after an 18th-century agriculturalist", a: "Jethro Tull" },
+                { q: "This band's name is a tribute to a blues musician", a: "Fleetwood Mac" },
+                { q: "Their name is a play on 'Exodus'", a: "The Doors" },
+                { q: "Named after a slang term for 'cool'", a: "Steely Dan" }
             ],
-            "Rock History": [
-                { q: "This 1969 festival kicked off the 70s rock scene", a: "What is Woodstock", value: 200 },
-                { q: "The Beatles officially broke up in this year", a: "What is 1970", value: 400 },
-                { q: "This genre, featuring artists like David Bowie, emerged in the early 70s", a: "What is Glam Rock", value: 600 },
-                { q: "This band released their debut album 'Ramones' in 1976", a: "Who are The Ramones", value: 800 },
-                { q: "This 1979 tragedy occurred at a The Who concert in Cincinnati", a: "What is the crowd crush at Riverfront Coliseum", value: 1000 }
+            [
+                { q: "Is this the real life? Is this just fantasy?", a: "Bohemian Rhapsody" },
+                { q: "On a dark desert highway, cool wind in my hair", a: "Hotel California" },
+                { q: "I can't get no satisfaction", a: "Satisfaction" },
+                { q: "Imagine there's no heaven, it's easy if you try", a: "Imagine" },
+                { q: "We don't need no education", a: "Another Brick in the Wall" }
             ],
-            "Instruments": [
-                { q: "This keyboard instrument was popular in prog rock", a: "What is a synthesizer", value: 200 },
-                { q: "This percussion instrument is often used in rock drum solos", a: "What are cowbells", value: 400 },
-                { q: "This string instrument was popularized by The Who's John Entwistle", a: "What is a bass guitar", value: 600 },
-                { q: "This wind instrument was used by Jethro Tull's Ian Anderson", a: "What is a flute", value: 800 },
-                { q: "This stringed instrument was often used by Jimmy Page in addition to electric guitar", a: "What is a mandolin", value: 1000 }
+            [
+                { q: "Year Woodstock took place", a: "1969" },
+                { q: "The Beatles' last public performance was on this building's roof", a: "Apple Corps" },
+                { q: "This format replaced 8-track tapes in the late 70s", a: "Cassette" },
+                { q: "MTV launched in this year", a: "1981" },
+                { q: "The 'Day the Music Died' refers to the plane crash that killed this artist", a: "Buddy Holly" }
             ]
-        };
+        ];
 
-        let currentQuestion;
         let score = 0;
+        let timer;
+        let currentQuestion;
+        let doubleJeopardyItems;
 
-        function createGameBoard() {
+        function initializeGame() {
             const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+
+            // Add category headers
             categories.forEach(category => {
                 const categoryElement = document.createElement('div');
                 categoryElement.className = 'category';
                 categoryElement.textContent = category;
                 gameBoard.appendChild(categoryElement);
-
-                questions[category].forEach((question, index) => {
-                    const questionElement = document.createElement('div');
-                    questionElement.className = 'question';
-                    questionElement.textContent = '$' + question.value;
-                    questionElement.onclick = () => showQuestion(category, index);
-                    gameBoard.appendChild(questionElement);
-                });
             });
-        }
 
-        function showQuestion(category, index) {
-            currentQuestion = questions[category][index];
-            document.getElementById('modal-category').textContent = category + ' - $' + currentQuestion.value;
-            document.getElementById('modal-question').textContent = currentQuestion.q;
-            document.getElementById('player-answer').value = '';
-            document.getElementById('feedback').textContent = '';
-            document.getElementById('question-modal').style.display = 'block';
-        }
-
-        function submitAnswer() {
-            const playerAnswer = document.getElementById('player-answer').value.toLowerCase().replace(/[?!.,]/g, '');
-            const correctAnswer = currentQuestion.a.toLowerCase().replace(/[?!.,]/g, '');
-            
-            if (playerAnswer === correctAnswer) {
-                score += currentQuestion.value;
-                document.getElementById('feedback').textContent = 'Correct!';
-                document.getElementById('feedback').style.color = 'green';
-            } else {
-                score -= currentQuestion.value;
-                document.getElementById('feedback').textContent = 'Sorry, the correct answer is: ' + currentQuestion.a;
-                document.getElementById('feedback').style.color = 'red';
+            // Add cards in ascending order
+            for (let i = 0; i < 5; i++) {
+                categories.forEach((category, categoryIndex) => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.textContent = `$${(i + 1) * 100}`;
+                    card.onclick = () => showQuestion(categoryIndex, i);
+                    gameBoard.appendChild(card);
+                });
             }
-            
-            document.getElementById('score').textContent = score;
-            
-            // Mark the question as answered
-            const questionElements = document.getElementsByClassName('question');
-            for (let i = 0; i < questionElements.length; i++) {
-                if (questionElements[i].textContent === '$' + currentQuestion.value) {
-                    questionElements[i].classList.add('answered');
-                    break;
+
+            // Select 2 random items for double jeopardy
+            doubleJeopardyItems = [];
+            while (doubleJeopardyItems.length < 2) {
+                const randomCategory = Math.floor(Math.random() * 5);
+                const randomQuestion = Math.floor(Math.random() * 5);
+                const item = `${randomCategory}-${randomQuestion}`;
+                if (!doubleJeopardyItems.includes(item)) {
+                    doubleJeopardyItems.push(item);
                 }
             }
         }
 
-        // Close the modal when clicking the close button or outside the modal
-        window.onclick = function(event) {
+        function showQuestion(categoryIndex, questionIndex) {
+            const card = document.querySelectorAll('.card')[questionIndex * 5 + categoryIndex];
+            if (card.classList.contains('correct') || card.classList.contains('incorrect')) return;
+
+            currentQuestion = { categoryIndex, questionIndex };
+            const question = questions[categoryIndex][questionIndex];
             const modal = document.getElementById('question-modal');
-            if (event.target == modal || event.target.className == 'close') {
-                modal.style.display = "none";
+            const modalCategory = document.getElementById('modal-category');
+            const modalQuestion = document.getElementById('modal-question');
+            const feedbackElement = document.getElementById('feedback');
+            const answerInput = document.getElementById('answer-input');
+
+            modalCategory.textContent = categories[categoryIndex];
+            modalQuestion.textContent = question.q;
+            feedbackElement.textContent = '';
+            answerInput.value = '';
+
+            const isDoubleJeopardy = doubleJeopardyItems.includes(`${categoryIndex}-${questionIndex}`);
+            if (isDoubleJeopardy) {
+                const maxWager = Math.max(score, 200);
+                const wager = prompt(`This is a Double Jeopardy question! Enter your wager (up to $${maxWager}):`, maxWager);
+                currentQuestion.wager = Math.min(Math.max(0, parseInt(wager) || 0), maxWager);
+            } else {
+                currentQuestion.wager = (questionIndex + 1) * 100;
             }
+
+            modal.style.display = 'block';
+            startTimer();
         }
 
-        createGameBoard();
+        function startTimer() {
+            clearInterval(timer);
+            let timeLeft = 30;
+            const timerElement = document.getElementById('timer');
+            timerElement.textContent = timeLeft;
+
+            timer = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    const feedbackElement = document.getElementById('feedback');
+                    feedbackElement.textContent = "Time's up! The correct answer was: " + questions[currentQuestion.categoryIndex][currentQuestion.questionIndex].a;
+                    feedbackElement.style.color = 'red';
+                    setTimeout(() => {
+                        document.getElementById('question-modal').style.display = 'none';
+                        markQuestionAsAnswered(false);
+                    }, 3000);
+                }
+            }, 1000);
+        }
+
+        function submitAnswer() {
+            clearInterval(timer);
+            const userAnswer = document.getElementById('answer-input').value.trim().toLowerCase();
+            const correctAnswer = questions[currentQuestion.categoryIndex][currentQuestion.questionIndex].a.toLowerCase();
+            const feedbackElement = document.getElementById('feedback');
+
+            const isCorrect = userAnswer === correctAnswer;
+            if (isCorrect) {
+                score += currentQuestion.wager;
+                feedbackElement.textContent = `Correct! You earned $${currentQuestion.wager}.`;
+                feedbackElement.style.color = 'green';
+            } else {
+                score -= currentQuestion.wager;
+                feedbackElement.textContent = `Sorry, that's incorrect. The correct answer was "${questions[currentQuestion.categoryIndex][currentQuestion.questionIndex].a}". You lost $${currentQuestion.wager}.`;
+                feedbackElement.style.color = 'red';
+            }
+
+            document.getElementById('score').textContent = score;
+            markQuestionAsAnswered(isCorrect);
+
+            // Display feedback for 3 seconds before closing the modal
+            setTimeout(() => {
+                document.getElementById('question-modal').style.display = 'none';
+            }, 3000);
+        }
+
+        function markQuestionAsAnswered(isCorrect) {
+            const card = document.querySelectorAll('.card')[currentQuestion.questionIndex * 5 + currentQuestion.categoryIndex];
+            card.classList.add(isCorrect ? 'correct' : 'incorrect');
+            card.onclick = null;
+        }
+
+        document.querySelector('.close').onclick = () => {
+            clearInterval(timer);
+            document.getElementById('question-modal').style.display = 'none';
+            markQuestionAsAnswered(false);
+        };
+
+        document.getElementById('submit-answer').onclick = submitAnswer;
+
+        initializeGame();
     </script>
 </body>
 </html>
